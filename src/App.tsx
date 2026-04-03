@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
+import SessionTimer from './components/SessionTimer'
 
 // Define the types based on data.json
 interface AgentProfile {
@@ -50,20 +51,19 @@ function App() {
   const [savedAgents, setSavedAgents] = useState<SavedAgent[]>([])
   const [selectedProvider, setSelectedProvider] = useState<string>('')
 
-  const handleDeleteAgent = (indexToRemove: number) => {
+  // FIX-6: useCallback so handleDeleteAgent is stable across renders
+  const handleDeleteAgent = useCallback((indexToRemove: number) => {
     const updatedAgents = savedAgents.filter((_, index) => index !== indexToRemove)
     setSavedAgents(updatedAgents)
-    localStorage.setItem('savedAgents', JSON.stringify(updatedAgents))
-  }
+    // FIX-7: guard localStorage.setItem against private-mode / storage-full throws
+    try {
+      localStorage.setItem('savedAgents', JSON.stringify(updatedAgents))
+    } catch (e) {
+      console.error('Failed to persist savedAgents:', e)
+    }
+  }, [savedAgents])
 
-  const [sessionTime, setSessionTime] = useState(0)
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setSessionTime(prev => prev + 1)
-    }, 1000)
-    return () => clearInterval(interval)
-  }, [])
+  // FIX-4: sessionTime state + interval moved into <SessionTimer /> — removed here
 
   useEffect(() => {
     // Load saved agents from local storage on component mount
@@ -95,7 +95,8 @@ function App() {
     return () => clearInterval(analyticsInterval)
   }, [])
 
-  const fetchAPI = async () => {
+  // FIX-6 + PERF-4: useCallback makes fetchAPI a stable reference
+  const fetchAPI = useCallback(async () => {
     setLoading(true)
     setError(null)
     try {
@@ -109,39 +110,38 @@ function App() {
       }
       const jsonData: AgentData = await response.json()
       setData(jsonData)
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to fetch agent data'
       console.error('Error fetching data:', err)
-      setError(err.message || 'Failed to fetch agent data')
+      setError(msg)
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
 
   // Fetch data on initial component mount
   useEffect(() => {
     fetchAPI()
-  }, [])
+  }, [fetchAPI])
 
-  const handleLayerSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
+  // FIX-6: stable handlers via useCallback
+  const handleLayerSelect = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
     const layerId = e.target.value;
-    // FIX-2: spread into new array instead of mutating the existing one
     if (layerId && !selectedLayers.includes(layerId)) {
       setSelectedLayers(prev => [...prev, layerId])
     }
-    e.target.value = ""; // Reset dropdown
-    // FIX-1: fetchAPI() removed — data is static, no refetch needed on selection
-  }
+    e.target.value = "";
+  }, [selectedLayers])
 
-  const handleSkillSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
+  const handleSkillSelect = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
     const skillId = e.target.value;
     if (skillId && !selectedSkills.includes(skillId)) {
       setSelectedSkills([...selectedSkills, skillId]);
     }
-    e.target.value = ""; // Reset dropdown
-    // FIX-1: fetchAPI() removed — data is static, no refetch needed on selection
-  }
+    e.target.value = "";
+  }, [selectedSkills])
 
-  const handleSaveAgent = () => {
+  const handleSaveAgent = useCallback(() => {
     if (!agentName.trim()) {
       alert('Please enter a name for your agent.')
       return
@@ -157,18 +157,39 @@ function App() {
 
     const updatedAgents = [...savedAgents, newAgent]
     setSavedAgents(updatedAgents)
-    localStorage.setItem('savedAgents', JSON.stringify(updatedAgents))
+    // FIX-7: guard localStorage.setItem
+    try {
+      localStorage.setItem('savedAgents', JSON.stringify(updatedAgents))
+    } catch (e) {
+      console.error('Failed to persist savedAgents:', e)
+    }
     setAgentName('')
     alert(`Agent "${newAgent.name}" saved successfully!`)
-  }
+  }, [agentName, selectedProfile, selectedSkills, selectedLayers, selectedProvider, savedAgents])
 
-  const handleLoadAgent = (agent: SavedAgent) => {
+  const handleLoadAgent = useCallback((agent: SavedAgent) => {
     setSelectedProfile(agent.profileId || '')
     setSelectedSkills(agent.skillIds || [])
     setSelectedLayers([...(agent.layerIds || [])])
     setAgentName(agent.name)
     setSelectedProvider(agent.provider || '')
-  }
+  }, [])
+
+  // FIX-5: memoized derived data — avoids repeated .find() calls on every render
+  const selectedProfileData = useMemo(
+    () => data?.agentProfiles.find(p => p.id === selectedProfile) ?? null,
+    [data, selectedProfile]
+  )
+
+  const selectedSkillsData = useMemo(
+    () => selectedSkills.map(id => data?.skills.find(s => s.id === id)).filter(Boolean) as Skill[],
+    [data, selectedSkills]
+  )
+
+  const selectedLayersData = useMemo(
+    () => selectedLayers.map(id => data?.layers.find(l => l.id === id)).filter(Boolean) as Layer[],
+    [data, selectedLayers]
+  )
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', padding: '1rem', fontFamily: 'sans-serif' }}>
@@ -179,8 +200,9 @@ function App() {
           <button onClick={fetchAPI} disabled={loading}>
             {loading ? 'Fetching Configuration...' : 'Reload Configuration Data'}
           </button>
+          {/* FIX-4: <SessionTimer> is isolated — its 1s tick no longer re-renders App */}
           <span style={{ fontSize: '0.9rem', color: '#666' }}>
-            Session Active: {sessionTime}s
+            <SessionTimer />
           </span>
         </div>
       </header>
@@ -275,54 +297,51 @@ function App() {
 
             <div style={{ background: '#f5f5f5', padding: '1rem', borderRadius: '8px', minHeight: '300px' }}>
               <h3 style={{ marginTop: 0 }}>Profile</h3>
-              {selectedProfile && data ? (
+              {/* FIX-5: use memoized selectedProfileData instead of repeated .find() */}
+              {selectedProfileData ? (
                 <p>
-                  <strong>{data.agentProfiles.find(p => p.id === selectedProfile)?.name}</strong>:
-                  {' '}{data.agentProfiles.find(p => p.id === selectedProfile)?.description}
+                  <strong>{selectedProfileData.name}</strong>:
+                  {' '}{selectedProfileData.description}
                 </p>
               ) : (
                 <p style={{ color: '#888' }}>No profile selected.</p>
               )}
 
               <h3>Selected Skills</h3>
-              {selectedSkills.length > 0 && data ? (
+              {/* FIX-5: use memoized selectedSkillsData */}
+              {selectedSkillsData.length > 0 ? (
                 <ul style={{ paddingLeft: '1.5rem' }}>
-                  {selectedSkills.map(skillId => {
-                    const skill = data.skills.find(s => s.id === skillId);
-                    return (
-                      <li key={skillId} style={{ marginBottom: '0.5rem' }}>
-                        {skill?.name}
-                        <button
-                          onClick={() => setSelectedSkills(selectedSkills.filter(id => id !== skillId))}
-                          style={{ marginLeft: '1rem', fontSize: '0.8rem', cursor: 'pointer' }}
-                        >
-                          Remove
-                        </button>
-                      </li>
-                    )
-                  })}
+                  {selectedSkillsData.map(skill => (
+                    <li key={skill.id} style={{ marginBottom: '0.5rem' }}>
+                      {skill.name}
+                      <button
+                        onClick={() => setSelectedSkills(prev => prev.filter(id => id !== skill.id))}
+                        style={{ marginLeft: '1rem', fontSize: '0.8rem', cursor: 'pointer' }}
+                      >
+                        Remove
+                      </button>
+                    </li>
+                  ))}
                 </ul>
               ) : (
                 <p style={{ color: '#888' }}>No skills added.</p>
               )}
 
               <h3>Selected Layers</h3>
-              {selectedLayers.length > 0 && data ? (
+              {/* FIX-5: use memoized selectedLayersData */}
+              {selectedLayersData.length > 0 ? (
                 <ul style={{ paddingLeft: '1.5rem' }}>
-                  {selectedLayers.map(layerId => {
-                    const layer = data.layers.find(l => l.id === layerId);
-                    return (
-                      <li key={layerId} style={{ marginBottom: '0.5rem' }}>
-                        {layer?.name}
-                        <button
-                          onClick={() => setSelectedLayers(selectedLayers.filter(id => id !== layerId))}
-                          style={{ marginLeft: '1rem', fontSize: '0.8rem', cursor: 'pointer' }}
-                        >
-                          Remove
-                        </button>
-                      </li>
-                    )
-                  })}
+                  {selectedLayersData.map(layer => (
+                    <li key={layer.id} style={{ marginBottom: '0.5rem' }}>
+                      {layer.name}
+                      <button
+                        onClick={() => setSelectedLayers(prev => prev.filter(id => id !== layer.id))}
+                        style={{ marginLeft: '1rem', fontSize: '0.8rem', cursor: 'pointer' }}
+                      >
+                        Remove
+                      </button>
+                    </li>
+                  ))}
                 </ul>
               ) : (
                 <p style={{ color: '#888' }}>No layers added.</p>
