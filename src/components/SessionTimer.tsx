@@ -1,19 +1,12 @@
 import { useState, useEffect } from 'react'
 
-/**
- * FIX-4 (PERF-2): Isolated session timer.
- * Moving sessionTime state here means the 1-second setInterval only
- * re-renders this tiny component — not the entire App tree.
- */
+/** FIX-4 + FIX-11: Timer isolated from App tree; no inline styles. */
 export default function SessionTimer() {
-  const [sessionTime, setSessionTime] = useState(0)
-
+  const [t, setT] = useState(0)
   useEffect(() => {
-    const interval = setInterval(() => {
-      setSessionTime(prev => prev + 1)
-    }, 1000)
-    return () => clearInterval(interval)
+    const id = setInterval(() => setT(p => p + 1), 1000)
+    return () => clearInterval(id)
   }, [])
-
-  return <span>Session Active: {sessionTime}s</span>
+  const m = Math.floor(t / 60), s = t % 60
+  return <>{m > 0 ? `${m}m ${s}s` : `${s}s`}</>
 }

@@ -8,124 +8,121 @@ interface Props {
   agentName: string
   onAgentNameChange: (name: string) => void
   onSave: () => void
-  onRemoveSkill: (id: string) => void
-  onRemoveLayer: (id: string) => void
-  /** Inline notification — wired up in FIX-10 (Phase 4). Optional until then. */
   notification?: Notification | null
 }
 
-/**
- * FIX-8: Right-pane "Current Agent Configuration" panel.
- * Receives pre-computed (memoized) data from App — no derive logic here.
- */
-export default function AgentCanvas({
-  selectedProfileData,
-  selectedSkillsData,
-  selectedLayersData,
-  selectedProvider,
-  agentName,
-  onAgentNameChange,
-  onSave,
-  onRemoveSkill,
-  onRemoveLayer,
-  notification,
-}: Props) {
-  return (
-    <section style={{ flex: '1 1 50%', paddingLeft: '1rem' }}>
-      <h2>Current Agent Configuration</h2>
+const PROVIDER_ICONS: Record<string, string> = {
+  Gemini: '✦', ChatGPT: '⬡', Kimi: '◎', Claude: '◈', DeepSeek: '⬥',
+}
 
-      {/* Notification banner — rendered when FIX-10 wires up inline alerts */}
+const LAYER_TYPE_CLASS: Record<string, string> = {
+  reasoning: 'layer-card-reasoning', personality: 'layer-card-personality',
+  formatting: 'layer-card-formatting', context: 'layer-card-context',
+}
+
+const SKILL_DOT_CLASS: Record<string, string> = {
+  information: 'skill-dot-information', action: 'skill-dot-action',
+}
+
+/** FIX-14: Redesigned agent configuration preview panel. */
+export default function AgentCanvas({
+  selectedProfileData, selectedSkillsData, selectedLayersData,
+  selectedProvider, agentName, onAgentNameChange, onSave, notification,
+}: Props) {
+  const hasContent = selectedProfileData || selectedSkillsData.length > 0
+    || selectedLayersData.length > 0 || selectedProvider
+
+  return (
+    <section className="panel">
+      <h2 className="panel-title">Agent Preview</h2>
+
+      {/* Inline notification — FIX-10 */}
       {notification && (
-        <div
-          style={{
-            padding: '0.75rem 1rem',
-            marginBottom: '1rem',
-            borderRadius: '4px',
-            background: notification.type === 'success' ? '#e8f5e9' : '#ffebee',
-            color: notification.type === 'success' ? '#2e7d32' : '#c62828',
-            border: `1px solid ${notification.type === 'success' ? '#a5d6a7' : '#ef9a9a'}`,
-          }}
-        >
-          {notification.message}
+        <div className={`notif notif-${notification.type}`}>
+          {notification.type === 'success' ? '✓' : '⚠'} {notification.message}
         </div>
       )}
 
-      <div style={{ background: '#f5f5f5', padding: '1rem', borderRadius: '8px', minHeight: '300px' }}>
-        {/* Profile */}
-        <h3 style={{ marginTop: 0 }}>Profile</h3>
-        {selectedProfileData ? (
-          <p>
-            <strong>{selectedProfileData.name}</strong>:{' '}
-            {selectedProfileData.description}
-          </p>
-        ) : (
-          <p style={{ color: '#888' }}>No profile selected.</p>
-        )}
+      {/* Empty state */}
+      {!hasContent ? (
+        <div className="canvas-empty">
+          <div className="canvas-empty-icon">🤖</div>
+          <p className="canvas-empty-title">Start building your agent</p>
+          <p className="canvas-empty-desc">Select a profile and add skills or layers to preview your agent here.</p>
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s4)' }}>
 
-        {/* Skills */}
-        <h3>Selected Skills</h3>
-        {selectedSkillsData.length > 0 ? (
-          <ul style={{ paddingLeft: '1.5rem' }}>
-            {selectedSkillsData.map((skill) => (
-              <li key={skill.id} style={{ marginBottom: '0.5rem' }}>
-                {skill.name}
-                <button
-                  onClick={() => onRemoveSkill(skill.id)}
-                  style={{ marginLeft: '1rem', fontSize: '0.8rem', cursor: 'pointer' }}
-                >
-                  Remove
-                </button>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p style={{ color: '#888' }}>No skills added.</p>
-        )}
+          {/* Profile */}
+          {selectedProfileData && (
+            <div className="profile-block">
+              <div className="profile-avatar">🧠</div>
+              <div>
+                <div className="profile-name">{selectedProfileData.name}</div>
+                <div className="profile-desc">{selectedProfileData.description}</div>
+              </div>
+            </div>
+          )}
 
-        {/* Layers */}
-        <h3>Selected Layers</h3>
-        {selectedLayersData.length > 0 ? (
-          <ul style={{ paddingLeft: '1.5rem' }}>
-            {selectedLayersData.map((layer) => (
-              <li key={layer.id} style={{ marginBottom: '0.5rem' }}>
-                {layer.name}
-                <button
-                  onClick={() => onRemoveLayer(layer.id)}
-                  style={{ marginLeft: '1rem', fontSize: '0.8rem', cursor: 'pointer' }}
-                >
-                  Remove
-                </button>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p style={{ color: '#888' }}>No layers added.</p>
-        )}
+          {/* Skills */}
+          {selectedSkillsData.length > 0 && (
+            <div>
+              <div className="section-sub-title">Skills ({selectedSkillsData.length})</div>
+              <div className="skills-pills">
+                {selectedSkillsData.map(skill => (
+                  <span key={skill.id} className="skill-pill">
+                    <span className={`skill-dot ${SKILL_DOT_CLASS[skill.category] ?? 'skill-dot-default'}`} />
+                    {skill.name}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
 
-        {/* Provider */}
-        <h3>Selected Provider</h3>
-        {selectedProvider ? (
-          <p><strong>{selectedProvider}</strong></p>
-        ) : (
-          <p style={{ color: '#888' }}>No provider selected.</p>
-        )}
+          {/* Layers */}
+          {selectedLayersData.length > 0 && (
+            <div>
+              <div className="section-sub-title">Layers ({selectedLayersData.length})</div>
+              <div className="layers-list">
+                {selectedLayersData.map(layer => (
+                  <div key={layer.id} className={`layer-card ${LAYER_TYPE_CLASS[layer.type] ?? ''}`}>
+                    <div className="layer-name">{layer.name}</div>
+                    <div className="layer-type">{layer.type}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
-        {/* Save section */}
-        <div style={{ marginTop: '2rem', borderTop: '1px solid #ddd', paddingTop: '1rem' }}>
-          <h3 style={{ marginTop: 0 }}>Save This Agent</h3>
-          <div style={{ display: 'flex', gap: '0.5rem' }}>
-            <input
-              id="agent-name-input"
-              type="text"
-              placeholder="Enter agent name…"
-              value={agentName}
-              onChange={(e) => onAgentNameChange(e.target.value)}
-              style={{ flex: 1, padding: '0.5rem' }}
-            />
-            <button id="save-agent-btn" onClick={onSave} style={{ padding: '0.5rem 1rem' }}>
-              Save Agent
-            </button>
-          </div>
+          {/* Provider */}
+          {selectedProvider && (
+            <div>
+              <div className="section-sub-title">Provider</div>
+              <span className="provider-chip">
+                <span>{PROVIDER_ICONS[selectedProvider] ?? '◉'}</span>
+                {selectedProvider}
+              </span>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Save section — always visible */}
+      <div className="save-section">
+        <div className="save-title">Save Agent</div>
+        <div className="save-row">
+          <input
+            id="agent-name-input"
+            className="save-input"
+            type="text"
+            placeholder="Give your agent a name…"
+            value={agentName}
+            onChange={e => onAgentNameChange(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && onSave()}
+          />
+          <button id="save-agent-btn" className="btn btn-accent" onClick={onSave}>
+            Save
+          </button>
         </div>
       </div>
     </section>
