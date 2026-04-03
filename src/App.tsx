@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 
 // Define the types based on data.json
 interface AgentProfile {
@@ -77,10 +77,16 @@ function App() {
     }
   }, [])
 
+  // FIX-3: useRef tracks latest agentName so the interval never captures a stale closure
+  const agentNameRef = useRef(agentName)
+  useEffect(() => {
+    agentNameRef.current = agentName
+  }, [agentName])
+
   useEffect(() => {
     const analyticsInterval = setInterval(() => {
-      if (agentName !== '') {
-        console.log(`[Analytics Heartbeat] User is working on agent named: "${agentName}"`)
+      if (agentNameRef.current !== '') {
+        console.log(`[Analytics Heartbeat] User is working on agent named: "${agentNameRef.current}"`)
       } else {
         console.log(`[Analytics Heartbeat] User is working on an unnamed agent draft...`)
       }
@@ -118,13 +124,12 @@ function App() {
 
   const handleLayerSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const layerId = e.target.value;
+    // FIX-2: spread into new array instead of mutating the existing one
     if (layerId && !selectedLayers.includes(layerId)) {
-      selectedLayers.push(layerId)
-      setSelectedLayers(selectedLayers)
+      setSelectedLayers(prev => [...prev, layerId])
     }
     e.target.value = ""; // Reset dropdown
-
-    fetchAPI()
+    // FIX-1: fetchAPI() removed — data is static, no refetch needed on selection
   }
 
   const handleSkillSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -133,8 +138,7 @@ function App() {
       setSelectedSkills([...selectedSkills, skillId]);
     }
     e.target.value = ""; // Reset dropdown
-
-    fetchAPI()
+    // FIX-1: fetchAPI() removed — data is static, no refetch needed on selection
   }
 
   const handleSaveAgent = () => {
@@ -206,7 +210,7 @@ function App() {
                     value={selectedProfile}
                     onChange={(e) => {
                       setSelectedProfile(e.target.value)
-                      fetchAPI()
+                      // FIX-1: fetchAPI() removed — profile change is purely a UI state change
                     }}
                     style={{ width: '100%', padding: '0.5rem' }}
                   >
