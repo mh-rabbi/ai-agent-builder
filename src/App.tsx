@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
-import type { AgentData, SavedAgent, Skill, Layer } from './types'
+import type { AgentData, SavedAgent, Skill, Layer, Notification } from './types'
 import SessionTimer from './components/SessionTimer'
 import ConfigPanel from './components/ConfigPanel'
 import AgentCanvas from './components/AgentCanvas'
@@ -31,6 +31,10 @@ function App() {
   // ─── Agent persistence ───────────────────────────────────────────────────────
   const [agentName, setAgentName] = useState('')
   const [savedAgents, setSavedAgents] = useState<SavedAgent[]>([])
+  // FIX-10: inline notification replaces alert()
+  const [notification, setNotification] = useState<Notification | null>(null)
+  // FIX-10: inline confirm replaces confirm() dialog
+  const [showClearConfirm, setShowClearConfirm] = useState(false)
 
   // ─── Lifecycle: load persisted agents on mount ───────────────────────────────
   useEffect(() => {
@@ -130,10 +134,17 @@ function App() {
     setSelectedLayers((prev) => prev.filter((lid) => lid !== id))
   }, [])
 
+  // FIX-10: timed inline notification helper — auto-dismisses after 3 s
+  const notify = useCallback((message: string, type: 'success' | 'error') => {
+    setNotification({ message, type })
+    setTimeout(() => setNotification(null), 3000)
+  }, [])
+
   // FIX-9: generates stable `id` + `createdAt` on each new agent.
   const handleSaveAgent = useCallback(() => {
     if (!agentName.trim()) {
-      alert('Please enter a name for your agent.')
+      // FIX-10: inline error notification instead of blocking alert()
+      notify('Please enter a name for your agent.', 'error')
       return
     }
 
@@ -156,8 +167,9 @@ function App() {
       console.error('Failed to persist savedAgents:', e)
     }
     setAgentName('')
-    alert(`Agent "${newAgent.name}" saved successfully!`)
-  }, [agentName, selectedProfile, selectedSkills, selectedLayers, selectedProvider, savedAgents])
+    // FIX-10: inline success notification instead of blocking alert()
+    notify(`Agent "${newAgent.name}" saved successfully!`, 'success')
+  }, [agentName, selectedProfile, selectedSkills, selectedLayers, selectedProvider, savedAgents, notify])
 
   const handleLoadAgent = useCallback((agent: SavedAgent) => {
     setSelectedProfile(agent.profileId || '')
@@ -178,12 +190,19 @@ function App() {
     }
   }, [savedAgents])
 
-  // LOGIC-5: confirm() will be replaced with inline UI in FIX-10 (Phase 4).
+  // FIX-10: show inline confirm UI instead of blocking confirm() dialog
   const handleClearAll = useCallback(() => {
-    if (confirm('Are you sure you want to clear all saved agents?')) {
-      setSavedAgents([])
-      localStorage.removeItem('savedAgents')
-    }
+    setShowClearConfirm(true)
+  }, [])
+
+  const handleConfirmClear = useCallback(() => {
+    setSavedAgents([])
+    localStorage.removeItem('savedAgents')
+    setShowClearConfirm(false)
+  }, [])
+
+  const handleCancelClear = useCallback(() => {
+    setShowClearConfirm(false)
   }, [])
 
   // ─── FIX-5: memoized derived data ────────────────────────────────────────────
@@ -253,6 +272,7 @@ function App() {
             onSave={handleSaveAgent}
             onRemoveSkill={handleRemoveSkill}
             onRemoveLayer={handleRemoveLayer}
+            notification={notification}
           />
         </div>
 
@@ -261,13 +281,34 @@ function App() {
           <section style={{ padding: '1.5rem', background: '#e0f7fa', borderRadius: '8px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
               <h2 style={{ margin: 0 }}>Saved Agents</h2>
-              {/* LOGIC-5: confirm() replaced with inline UI in Phase 4 (FIX-10) */}
-              <button
-                onClick={handleClearAll}
-                style={{ padding: '0.5rem 1rem', background: '#d32f2f', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
-              >
-                Clear All
-              </button>
+              {/* FIX-10: inline confirm — no blocking confirm() dialog */}
+              {showClearConfirm ? (
+                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                  <span style={{ fontSize: '0.9rem', color: '#555' }}>Clear all agents?</span>
+                  <button
+                    id="confirm-clear-btn"
+                    onClick={handleConfirmClear}
+                    style={{ padding: '0.5rem 1rem', background: '#d32f2f', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+                  >
+                    Confirm
+                  </button>
+                  <button
+                    id="cancel-clear-btn"
+                    onClick={handleCancelClear}
+                    style={{ padding: '0.5rem 1rem', background: '#607d8b', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              ) : (
+                <button
+                  id="clear-all-btn"
+                  onClick={handleClearAll}
+                  style={{ padding: '0.5rem 1rem', background: '#d32f2f', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+                >
+                  Clear All
+                </button>
+              )}
             </div>
             <div style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap' }}>
               {savedAgents.map((agent) => (
