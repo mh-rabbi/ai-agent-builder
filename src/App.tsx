@@ -5,6 +5,7 @@ import LeftSidebar from './components/LeftSidebar'
 import BuilderCanvas from './components/BuilderCanvas'
 import AgentPreview from './components/AgentPreview'
 import MobileHeader from './components/MobileHeader'
+import DeveloperDossier from './components/DeveloperDossier'
 import ToastNotification from './components/ToastNotification'
 import { useWindowSize } from './hooks/useWindowSize'
 import './index.css'
@@ -30,6 +31,7 @@ function App() {
   const isDesktop = width >= 1024
   const [isLeftSidebarOpen, setIsLeftSidebarOpen] = useState(false)
   const [isPreviewOpen, setIsPreviewOpen] = useState(false)
+  const [isDossierOpen, setIsDossierOpen] = useState(false)
 
   // Auto-close drawers on escape or navigation might be nice, but simple toggle for now.
   // Ensure drawers are closed when switching to desktop to avoid weird states if they were open.
@@ -282,6 +284,7 @@ function App() {
               onDeleteAgent={handleDeleteAgent}
               onDeleteAllAgents={handleDeleteAllAgents}
               onClose={!isDesktop ? () => setIsLeftSidebarOpen(false) : undefined}
+              onOpenDossier={() => { setIsDossierOpen(true); if (!isDesktop) setIsLeftSidebarOpen(false); }}
             />
           </div>
         )}
@@ -326,6 +329,10 @@ function App() {
       </div>
 
       <ToastNotification toast={toast} onClose={dismissToast} />
+
+      {isDossierOpen && (
+        <DeveloperDossier onClose={() => setIsDossierOpen(false)} />
+      )}
     </div>
   )
 }

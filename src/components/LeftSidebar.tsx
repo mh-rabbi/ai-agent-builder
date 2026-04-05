@@ -14,7 +14,8 @@ interface Props {
   onSelectAgent: (agent: SavedAgent) => void;
   onDeleteAgent: (id: string) => void;
   onDeleteAllAgents: () => void;
-  onClose?: () => void; // Added for drawer mode
+  onClose?: () => void;
+  onOpenDossier: () => void; // Added for CV access
 }
 
 
@@ -22,7 +23,7 @@ interface Props {
 export default function LeftSidebar({
   agents, data, selectedAgentId,
   onNewAgent, onSelectAgent, onDeleteAgent, onDeleteAllAgents,
-  onClose
+  onClose, onOpenDossier
 }: Props) {
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [showDeleteAllModal, setShowDeleteAllModal] = useState(false);
@@ -263,20 +264,53 @@ export default function LeftSidebar({
         </div>
 
         {/* Section D — Footer CTA */}
-        <div style={{ padding: '16px', borderTop: '1px solid var(--border-default)' }}>
-          <Button
-            variant="outline"
-            size="sm"
-            icon={
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-              </svg>
-            }
-            onClick={onNewAgent}
-            style={{ width: '100%' }}
+        <div style={{ borderTop: '1px solid var(--border-default)' }}>
+          {/* Developer Card */}
+          <div 
+            className="developer-card-pulse"
+            style={{ padding: '0' }}
           >
-            New Agent
-          </Button>
+            <button 
+              className="developer-card-btn"
+              onClick={onOpenDossier}
+            >
+              <div style={{
+                width: '32px', height: '32px', borderRadius: '8px',
+                background: 'linear-gradient(135deg, var(--accent-violet), var(--accent-violet-dark))',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1rem',
+                boxShadow: '0 4px 12px rgba(124, 58, 237, 0.2)'
+              }}>
+                👨‍💻
+              </div>
+              <div style={{ flex: 1 }}>
+                <p style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-primary)', margin: 0 }}>
+                  Md. Mahmudul Hasan Rabbi
+                </p>
+                <p style={{ fontSize: '0.65rem', color: 'var(--text-muted)', margin: 0, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  System Architect
+                </p>
+              </div>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="2.5">
+                <path d="M9 18l6-6-6-6"/>
+              </svg>
+            </button>
+          </div>
+
+          <div style={{ padding: '16px', paddingTop: '4px' }}>
+            <Button
+              variant="outline"
+              size="sm"
+              icon={
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+                </svg>
+              }
+              onClick={onNewAgent}
+              style={{ width: '100%' }}
+            >
+              New Agent
+            </Button>
+          </div>
         </div>
       </aside>
 
