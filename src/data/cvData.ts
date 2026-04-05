@@ -44,16 +44,21 @@ export interface CVData {
     vjudge: string;
     leetcode: string;
   };
+  trainings?: {
+    name: string;
+    institution: string;
+    certificateLink?: string;
+  }[];
 }
 
 export const cvData: CVData = {
   name: "Md. Mahmudul Hasan Rabbi",
   title: "Software Engineer",
-  email: "mhr221official@gmail.com",
+  email: "mailto:mhr221official@gmail.com",
   phone: "+880 1640 863379",
-  linkedin: "linkedin.com/in/rabbi221",
-  github: "github.com/mh-rabbi",
-  website: "rabbi-cse.vercel.app",
+  linkedin: "https://linkedin.com/in/rabbi221",
+  github: "https://github.com/mh-rabbi",
+  website: "https://rabbi-cse.vercel.app",
   summary: "Highly ambitious and results-driven Software Engineer with experience in backend frameworks (NestJS, Express.js) and cross-platform development (Flutter, Next.js, Native Android). Quick learner with strong problem-solving skills and a solid DSA foundation.",
   education: {
     institution: "International University of Business Agriculture and Technology",
@@ -124,4 +129,11 @@ export const cvData: CVData = {
     vjudge: "rabbi0123",
     leetcode: "MHR_221",
   },
+  trainings: [
+    {
+      name: "Mobile Application Development",
+      institution: "Jagannath University, under EDGE Project – ICT Division (80 Hours)",
+      certificateLink: "https://drive.google.com/file/d/1u6axLoSg9C6BWBrZwn_qp_xSRgTn9jDE/view?usp=sharing"
+    }
+  ]
 };
