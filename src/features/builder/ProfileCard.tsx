@@ -1,3 +1,5 @@
+import { memo } from 'react';
+
 interface Props {
   id: string;
   name: string;
@@ -8,7 +10,7 @@ interface Props {
   onClick: () => void;
 }
 
-export function ProfileCard({ id, name, description, icon, gradient, selected, onClick }: Props) {
+export const ProfileCard = memo(function ProfileCard({ id, name, description, icon, gradient, selected, onClick }: Props) {
   return (
     <button
       id={`profile-card-${id}`}
@@ -71,4 +73,4 @@ export function ProfileCard({ id, name, description, icon, gradient, selected, o
       </p>
     </button>
   );
-}
+});

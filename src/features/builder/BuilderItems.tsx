@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { CATEGORY_COLORS, LAYER_TYPE_COLORS } from '../../data';
 import { CategoryDot, Badge } from '../../components/ui/Badge';
 
@@ -10,14 +11,14 @@ interface SkillItemProps {
   isDragging?: boolean;
   index?: number;
 }
-export function SkillItem({ id, name, category, isSelected, onAdd, onRemove, dragHandleProps, isDragging, index }: SkillItemProps) {
+export const SkillItem = memo(function SkillItem({ id, name, category, isSelected, onAdd, onRemove, dragHandleProps, isDragging, index }: SkillItemProps) {
   const color = CATEGORY_COLORS[category] || 'var(--accent-violet)';
   return (
     <div
       id={`skill-item-${id}`}
       style={{
         display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 12px',
-        borderRadius: '8px', border: `1px ${isSelected ? 'solid' : 'dashed'} ${isSelected ? 'var(--border-default)' : 'var(--border-default)'}`,
+        borderRadius: '8px', border: `1px ${isSelected ? 'solid' : 'dashed'} var(--border-default)`,
         background: isSelected ? 'var(--bg-surface-2)' : 'rgba(26,29,38,0.5)',
         transition: 'all 150ms', opacity: isDragging ? 0.4 : 1,
         transform: isDragging ? 'rotate(2deg) scale(1.05)' : 'none',
@@ -75,7 +76,7 @@ export function SkillItem({ id, name, category, isSelected, onAdd, onRemove, dra
       )}
     </div>
   );
-}
+});
 
 // ── LayerItem ──
 interface LayerItemProps {
@@ -86,7 +87,7 @@ interface LayerItemProps {
   isDragging?: boolean;
   index?: number;
 }
-export function LayerItem({ id, name, type, isSelected, onAdd, onRemove, dragHandleProps, isDragging, index }: LayerItemProps) {
+export const LayerItem = memo(function LayerItem({ id, name, type, isSelected, onAdd, onRemove, dragHandleProps, isDragging, index }: LayerItemProps) {
   const color = LAYER_TYPE_COLORS[type] || 'var(--accent-violet)';
   return (
     <div
@@ -94,7 +95,7 @@ export function LayerItem({ id, name, type, isSelected, onAdd, onRemove, dragHan
       style={{
         display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 12px',
         borderRadius: '8px', borderLeft: `4px solid ${color}`,
-        border: `1px solid ${isSelected ? 'var(--border-default)' : 'var(--border-default)'}`,
+        border: `1px solid var(--border-default)`,
         borderLeftWidth: '4px', borderLeftColor: color,
         background: isSelected ? 'var(--bg-surface-2)' : 'rgba(26,29,38,0.5)',
         transition: 'all 150ms', opacity: isDragging ? 0.4 : 1,
@@ -155,4 +156,4 @@ export function LayerItem({ id, name, type, isSelected, onAdd, onRemove, dragHan
       )}
     </div>
   );
-}
+});

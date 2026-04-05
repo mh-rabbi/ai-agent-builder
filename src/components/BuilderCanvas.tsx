@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import {
   DndContext, DragOverlay, PointerSensor, KeyboardSensor,
   useSensor, useSensors, closestCorners,
@@ -87,19 +87,21 @@ function CapabilitiesPanel({ data, builderState, onSkillAdd, onSkillRemove, onSk
   const [activeTab, setActiveTab] = useState<'skills' | 'layers'>('skills');
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
 
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
-  );
+  const pSensor = useSensor(PointerSensor, { activationConstraint: { distance: 6 } });
+  const kSensor = useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates });
+  const sensorsActual = useSensors(pSensor, kSensor);
 
   const { selectedSkills, selectedLayers } = builderState;
-  const availableSkills = data.skills.filter(s => !selectedSkills.includes(s.id));
-  const availableLayers = data.layers.filter(l => !selectedLayers.includes(l.id));
-  const selectedSkillsData = selectedSkills.map(id => data.skills.find(s => s.id === id)).filter(Boolean) as Skill[];
-  const selectedLayersData = selectedLayers.map(id => data.layers.find(l => l.id === id)).filter(Boolean) as Layer[];
+  
+  const { availableSkills, availableLayers, selectedSkillsData, selectedLayersData } = useMemo(() => ({
+    availableSkills: data.skills.filter(s => !selectedSkills.includes(s.id)),
+    availableLayers: data.layers.filter(l => !selectedLayers.includes(l.id)),
+    selectedSkillsData: selectedSkills.map(id => data.skills.find(s => s.id === id)).filter(Boolean) as Skill[],
+    selectedLayersData: selectedLayers.map(id => data.layers.find(l => l.id === id)).filter(Boolean) as Layer[],
+  }), [data.skills, data.layers, selectedSkills, selectedLayers]);
 
-  const selSkillIds = selectedSkills.map(id => `sel-sk-${id}`);
-  const selLayerIds = selectedLayers.map(id => `sel-ly-${id}`);
+  const selSkillIds = useMemo(() => selectedSkills.map(id => `sel-sk-${id}`), [selectedSkills]);
+  const selLayerIds = useMemo(() => selectedLayers.map(id => `sel-ly-${id}`), [selectedLayers]);
 
   const onDragStart = useCallback(({ active }: DragStartEvent) => setActiveDragId(active.id as string), []);
   const onDragEnd = useCallback(({ active, over }: DragEndEvent) => {
@@ -139,7 +141,7 @@ function CapabilitiesPanel({ data, builderState, onSkillAdd, onSkillRemove, onSk
   const isMobile = width < 768;
 
   return (
-    <DndContext sensors={sensors} collisionDetection={closestCorners} onDragStart={onDragStart} onDragEnd={onDragEnd}>
+    <DndContext sensors={sensorsActual} collisionDetection={closestCorners} onDragStart={onDragStart} onDragEnd={onDragEnd}>
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '16px' }}>
         {/* LEFT — Available */}
         <div style={{ background: 'var(--bg-surface-1)', borderRadius: '12px', padding: '16px', border: '1px solid var(--border-default)' }}>
@@ -159,7 +161,7 @@ function CapabilitiesPanel({ data, builderState, onSkillAdd, onSkillRemove, onSk
                 <p style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.8rem', padding: '24px', fontStyle: 'italic' }}>
                   All skills added ✓
                 </p>
-              ) : availableSkills.map(s => (
+              ) : availableSkills.map((s: Skill) => (
                 <SkillItem
                   key={s.id} id={s.id} name={s.name} category={s.category}
                   onAdd={() => onSkillAdd(s.id)}
@@ -170,7 +172,7 @@ function CapabilitiesPanel({ data, builderState, onSkillAdd, onSkillRemove, onSk
                 <p style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.8rem', padding: '24px', fontStyle: 'italic' }}>
                   All layers added ✓
                 </p>
-              ) : availableLayers.map(l => (
+              ) : availableLayers.map((l: Layer) => (
                 <LayerItem
                   key={l.id} id={l.id} name={l.name} type={l.type}
                   onAdd={() => onLayerAdd(l.id)}
@@ -200,7 +202,7 @@ function CapabilitiesPanel({ data, builderState, onSkillAdd, onSkillRemove, onSk
                     </svg>
                     <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Drop or add skills here</p>
                   </div>
-                ) : selectedSkillsData.map((skill, idx) => (
+                ) : selectedSkillsData.map((skill: Skill, idx: number) => (
                   <SortableSkill key={`sel-sk-${skill.id}`} id={`sel-sk-${skill.id}`}>
                     {({ dragHandleProps, isDragging }) => (
                       <SkillItem
@@ -230,7 +232,7 @@ function CapabilitiesPanel({ data, builderState, onSkillAdd, onSkillRemove, onSk
                     </svg>
                     <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Drop or add layers here</p>
                   </div>
-                ) : selectedLayersData.map((layer, idx) => (
+                ) : selectedLayersData.map((layer: Layer, idx: number) => (
                   <SortableSkill key={`sel-ly-${layer.id}`} id={`sel-ly-${layer.id}`}>
                     {({ dragHandleProps, isDragging }) => (
                       <LayerItem
@@ -279,10 +281,10 @@ export default function BuilderCanvas({
   const step1Done = selectedProfile !== '';
   const step2Done = selectedSkills.length > 0 || selectedLayers.length > 0;
 
-  const profiles = data?.agentProfiles.map(p => ({
+  const profiles = useMemo(() => data?.agentProfiles.map(p => ({
     ...p,
     ...(PROFILE_META[p.id] || { icon: '🤖', gradient: ['#7C3AED', '#4F46E5'] as [string, string] }),
-  })) ?? [];
+  })) ?? [], [data?.agentProfiles]);
 
   return (
     <>
@@ -328,14 +330,18 @@ export default function BuilderCanvas({
           )}
 
           {/* Progress Stepper */}
-          <div className="scrollbar-hide" style={{
-            display: 'flex', alignItems: 'center',
-            justifyContent: isMobile ? 'flex-start' : 'center',
-            gap: isMobile ? '12px' : '16px',
-            marginBottom: '48px',
-            overflowX: isMobile ? 'auto' : 'visible',
-            paddingBottom: isMobile ? '8px' : '0',
-          }}>
+          <nav 
+            className="scrollbar-hide" 
+            aria-label="Builder Progress"
+            style={{
+              display: 'flex', alignItems: 'center',
+              justifyContent: isMobile ? 'flex-start' : 'center',
+              gap: isMobile ? '12px' : '16px',
+              marginBottom: '48px',
+              overflowX: isMobile ? 'auto' : 'visible',
+              paddingBottom: isMobile ? '8px' : '0',
+            }}
+          >
             <StepDot step={1} label="Profile" currentStep={currentStep} isCompleted={step1Done} />
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={step1Done ? 'var(--accent-success)' : 'var(--text-muted)'} strokeWidth="2" style={{ flexShrink: 0 }}>
               <polyline points="9 18 15 12 9 6"/>
@@ -345,7 +351,7 @@ export default function BuilderCanvas({
               <polyline points="9 18 15 12 9 6"/>
             </svg>
             <StepDot step={3} label="Save" currentStep={currentStep} isCompleted={false} />
-          </div>
+          </nav>
 
           {/* Loading state */}
           {loading && (
@@ -370,7 +376,7 @@ export default function BuilderCanvas({
                 Choose a Base Profile
               </h2>
               <div className="scrollbar-hide" style={{ display: 'flex', gap: '16px', overflowX: 'auto', paddingBottom: '16px' }}>
-                {profiles.map(p => (
+                {profiles.map((p: any) => (
                   <ProfileCard
                     key={p.id} id={p.id} name={p.name} description={p.description}
                     icon={p.icon} gradient={p.gradient}

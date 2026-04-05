@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 export function useWindowSize() {
   const [windowSize, setWindowSize] = useState({
@@ -6,8 +6,15 @@ export function useWindowSize() {
     height: typeof window !== 'undefined' ? window.innerHeight : 0,
   });
 
+  const lastCall = useRef(0);
+
   useEffect(() => {
     function handleResize() {
+      const now = Date.now();
+      // Throttle to ~60fps (16ms) to keep it smooth but reduce React noise
+      if (now - lastCall.current < 16) return;
+      lastCall.current = now;
+
       setWindowSize({
         width: window.innerWidth,
         height: window.innerHeight,

@@ -51,42 +51,62 @@ function App() {
 
   // ── Fetch config on mount (stale-closure-safe) ──
   const fetchAPI = useCallback(async () => {
-    setLoading(true)
+    setLoading(true);
     try {
-      await new Promise(r => setTimeout(r, 800)) // slight delay for UX
-      const res = await fetch('/data.json')
-      if (!res.ok) throw new Error(`HTTP ${res.status}`)
-      const json = await res.json()
+      await new Promise(r => setTimeout(r, 800)); // slight UX delay
+      const res = await fetch('/data.json');
+      if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+      
+      const json = await res.json();
+      if (!json || !Array.isArray(json.agentProfiles)) {
+        throw new Error('Invalid data format received from server.');
+      }
+
       // Enrich profiles with icon + gradient from PROFILE_META
-      const enriched = {
+      const enriched: AgentData = {
         ...json,
-        agentProfiles: json.agentProfiles.map((p: AgentData['agentProfiles'][0]) => ({
+        agentProfiles: json.agentProfiles.map((p: any) => ({
           ...p,
           ...(PROFILE_META[p.id] || { icon: '🤖', gradient: ['#7C3AED', '#4F46E5'] }),
         })),
-      }
-      setData(enriched)
+      };
+      setData(enriched);
     } catch (err) {
-      notify('Failed to load configuration.', 'error')
+      console.error('[FetchError]', err);
+      notify(err instanceof Error ? err.message : 'Failed to load configuration.', 'error');
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }, [notify])
+  }, [notify]);
 
   useEffect(() => { fetchAPI() }, [fetchAPI])
 
-  // ── Load persisted agents from localStorage ──
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem('savedAgents')
-      if (saved) {
-        const parsed: SavedAgent[] = JSON.parse(saved).map((a: SavedAgent) => ({
-          ...a, id: a.id ?? crypto.randomUUID(), createdAt: a.createdAt ?? Date.now(),
-        }))
-        setAgents(parsed)
+    const loadSaved = () => {
+      try {
+        const saved = localStorage.getItem('savedAgents');
+        if (saved) {
+          const parsed: SavedAgent[] = JSON.parse(saved).map((a: SavedAgent) => ({
+            ...a, 
+            id: a.id ?? crypto.randomUUID(), 
+            createdAt: a.createdAt ?? Date.now(),
+          }));
+          setAgents(parsed);
+        }
+      } catch (e) { 
+        console.error('Failed to parse saved agents', e);
       }
-    } catch (e) { console.error('Failed to parse saved agents', e) }
-  }, [])
+    };
+
+    loadSaved();
+
+    // Listen for changes from other tabs
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'savedAgents') loadSaved();
+    };
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, []);
 
   // ── Stale-closure-safe analytics ──
   const agentNameRef = useRef(builderState.agentName)
