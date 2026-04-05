@@ -1,41 +1,77 @@
-import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
-import type { AgentData, SavedAgent, Skill, Layer, Notification } from './types'
-import SessionTimer from './components/SessionTimer'
-import ConfigPanel from './components/ConfigPanel'
-import AgentCanvas from './components/AgentCanvas'
-import SavedAgentCard from './components/SavedAgentCard'
-import './App.css'
+import { useState, useEffect, useRef, useCallback } from 'react'
+import type { AgentData, SavedAgent, BuilderState, Toast } from './types'
+import { PROFILE_META, DEFAULT_BUILDER_STATE } from './data'
+import LeftSidebar from './components/LeftSidebar'
+import BuilderCanvas from './components/BuilderCanvas'
+import AgentPreview from './components/AgentPreview'
+import ToastNotification from './components/ToastNotification'
+import './index.css'
 
 function App() {
+  /* ── Data ── */
   const [data, setData] = useState<AgentData | null>(null)
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
 
-  const [selectedProfile, setSelectedProfile] = useState('')
-  const [selectedSkills, setSelectedSkills] = useState<string[]>([])
-  const [selectedLayers, setSelectedLayers] = useState<string[]>([])
-  const [selectedProvider, setSelectedProvider] = useState('')
-  const [agentName, setAgentName] = useState('')
-  const [savedAgents, setSavedAgents] = useState<SavedAgent[]>([])
-  const [notification, setNotification] = useState<Notification | null>(null)
-  const [showClearConfirm, setShowClearConfirm] = useState(false)
+  /* ── Agents list ── */
+  const [agents, setAgents] = useState<SavedAgent[]>([])
+  const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null)
+  const [lastSaved, setLastSaved] = useState<Date | undefined>(undefined)
 
-  // Load persisted agents on mount
+  /* ── Builder state ── */
+  const [builderState, setBuilderState] = useState<BuilderState>(DEFAULT_BUILDER_STATE)
+
+  /* ── Toast ── */
+  const [toast, setToast] = useState<Toast | null>(null)
+
+  // ── Notify helper ──
+  const notify = useCallback((message: string, type: 'success' | 'error') => {
+    setToast({ message, type })
+  }, [])
+
+  const dismissToast = useCallback(() => setToast(null), [])
+
+  // ── Fetch config on mount (stale-closure-safe) ──
+  const fetchAPI = useCallback(async () => {
+    setLoading(true)
+    try {
+      await new Promise(r => setTimeout(r, 800)) // slight delay for UX
+      const res = await fetch('/data.json')
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      const json = await res.json()
+      // Enrich profiles with icon + gradient from PROFILE_META
+      const enriched = {
+        ...json,
+        agentProfiles: json.agentProfiles.map((p: AgentData['agentProfiles'][0]) => ({
+          ...p,
+          ...(PROFILE_META[p.id] || { icon: '🤖', gradient: ['#7C3AED', '#4F46E5'] }),
+        })),
+      }
+      setData(enriched)
+    } catch (err) {
+      notify('Failed to load configuration.', 'error')
+    } finally {
+      setLoading(false)
+    }
+  }, [notify])
+
+  useEffect(() => { fetchAPI() }, [fetchAPI])
+
+  // ── Load persisted agents from localStorage ──
   useEffect(() => {
-    const saved = localStorage.getItem('savedAgents')
-    if (saved) {
-      try {
+    try {
+      const saved = localStorage.getItem('savedAgents')
+      if (saved) {
         const parsed: SavedAgent[] = JSON.parse(saved).map((a: SavedAgent) => ({
           ...a, id: a.id ?? crypto.randomUUID(), createdAt: a.createdAt ?? Date.now(),
         }))
-        setSavedAgents(parsed)
-      } catch (e) { console.error('Failed to parse saved agents', e) }
-    }
+        setAgents(parsed)
+      }
+    } catch (e) { console.error('Failed to parse saved agents', e) }
   }, [])
 
-  // FIX-3: stale-closure-safe analytics
-  const agentNameRef = useRef(agentName)
-  useEffect(() => { agentNameRef.current = agentName }, [agentName])
+  // ── Stale-closure-safe analytics ──
+  const agentNameRef = useRef(builderState.agentName)
+  useEffect(() => { agentNameRef.current = builderState.agentName }, [builderState.agentName])
   useEffect(() => {
     const id = setInterval(() => {
       console.log(agentNameRef.current
@@ -45,149 +81,185 @@ function App() {
     return () => clearInterval(id)
   }, [])
 
-  // FIX-6+PERF-4: stable fetchAPI
-  const fetchAPI = useCallback(async () => {
-    setLoading(true); setError(null)
-    try {
-      await new Promise(r => setTimeout(r, Math.floor(Math.random() * 2000) + 1000))
-      const res = await fetch('/data.json')
-      if (!res.ok) throw new Error(`HTTP ${res.status}`)
-      setData(await res.json())
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch')
-    } finally { setLoading(false) }
-  }, [])
-  useEffect(() => { fetchAPI() }, [fetchAPI])
-
-  // FIX-10: notify helper
-  const notify = useCallback((message: string, type: 'success' | 'error') => {
-    setNotification({ message, type })
-    setTimeout(() => setNotification(null), 3000)
-  }, [])
-
-  // Handlers
-  const handleProfileChange = useCallback((id: string) => setSelectedProfile(id), [])
-  const handleProviderChange = useCallback((p: string) => setSelectedProvider(p), [])
-
-  // FIX-13: new per-action skill/layer handlers (replaces select event handlers)
-  const handleSkillAdd = useCallback((id: string) => setSelectedSkills(p => [...p, id]), [])
-  const handleSkillRemove = useCallback((id: string) => setSelectedSkills(p => p.filter(s => s !== id)), [])
-  const handleSkillsReorder = useCallback((ids: string[]) => setSelectedSkills(ids), [])
-  const handleLayerAdd = useCallback((id: string) => setSelectedLayers(p => [...p, id]), [])
-  const handleLayerRemove = useCallback((id: string) => setSelectedLayers(p => p.filter(l => l !== id)), [])
-  const handleLayersReorder = useCallback((ids: string[]) => setSelectedLayers(ids), [])
-
-  const persist = useCallback((agents: SavedAgent[]) => {
-    try { localStorage.setItem('savedAgents', JSON.stringify(agents)) }
+  // ── Persist agents to localStorage ──
+  const persist = useCallback((updated: SavedAgent[]) => {
+    try { localStorage.setItem('savedAgents', JSON.stringify(updated)) }
     catch (e) { console.error('localStorage write failed:', e) }
   }, [])
 
-  const handleSaveAgent = useCallback(() => {
-    if (!agentName.trim()) { notify('Please enter a name for your agent.', 'error'); return }
-    const newAgent: SavedAgent = {
-      id: crypto.randomUUID(), createdAt: Date.now(), name: agentName,
-      profileId: selectedProfile, skillIds: selectedSkills,
-      layerIds: selectedLayers, provider: selectedProvider,
+  // ── Builder state updaters ──
+  const patchBuilder = useCallback((patch: Partial<BuilderState>) => {
+    setBuilderState(prev => ({ ...prev, ...patch }))
+  }, [])
+
+  const handleProfileSelect = useCallback((id: string) => {
+    const profile = data?.agentProfiles.find(p => p.id === id)
+    setBuilderState(prev => ({
+      ...prev,
+      selectedProfile: id,
+      currentStep: 2,
+      agentName: prev.agentName || (profile ? `My ${profile.name}` : prev.agentName),
+    }))
+  }, [data])
+
+  const handleProviderToggle = useCallback((id: string) => {
+    setBuilderState(prev => ({
+      ...prev,
+      selectedProvider: prev.selectedProvider === id ? '' : id,
+    }))
+  }, [])
+
+  const handleSkillAdd = useCallback((id: string) => {
+    setBuilderState(prev => prev.selectedSkills.includes(id)
+      ? prev : { ...prev, selectedSkills: [...prev.selectedSkills, id] })
+  }, [])
+  const handleSkillRemove = useCallback((id: string) => {
+    setBuilderState(prev => ({ ...prev, selectedSkills: prev.selectedSkills.filter(s => s !== id) }))
+  }, [])
+  const handleSkillsReorder = useCallback((ids: string[]) => {
+    setBuilderState(prev => ({ ...prev, selectedSkills: ids }))
+  }, [])
+
+  const handleLayerAdd = useCallback((id: string) => {
+    setBuilderState(prev => prev.selectedLayers.includes(id)
+      ? prev : { ...prev, selectedLayers: [...prev.selectedLayers, id] })
+  }, [])
+  const handleLayerRemove = useCallback((id: string) => {
+    setBuilderState(prev => ({ ...prev, selectedLayers: prev.selectedLayers.filter(l => l !== id) }))
+  }, [])
+  const handleLayersReorder = useCallback((ids: string[]) => {
+    setBuilderState(prev => ({ ...prev, selectedLayers: ids }))
+  }, [])
+
+  const handleAgentNameChange = useCallback((name: string) => {
+    patchBuilder({ agentName: name })
+  }, [patchBuilder])
+
+  // ── Reset / Clear ──
+  const handleReset = useCallback(() => {
+    setBuilderState(prev => ({ ...prev, selectedSkills: [], selectedLayers: [], selectedProvider: '' }))
+  }, [])
+
+  const handleClearAll = useCallback(() => {
+    setBuilderState(DEFAULT_BUILDER_STATE)
+    setSelectedAgentId(null)
+  }, [])
+
+  // ── Save agent ──
+  const handleSave = useCallback(() => {
+    if (!builderState.selectedProfile || !builderState.agentName.trim()) {
+      notify(
+        !builderState.selectedProfile
+          ? 'Please select a base profile first.'
+          : 'Please enter a name for your agent.',
+        'error'
+      )
+      return
     }
-    const updated = [...savedAgents, newAgent]
-    setSavedAgents(updated); persist(updated); setAgentName('')
+    const existing = selectedAgentId ? agents.find(a => a.id === selectedAgentId) : null
+
+    const newAgent: SavedAgent = {
+      id: existing?.id ?? crypto.randomUUID(),
+      createdAt: existing?.createdAt ?? Date.now(),
+      name: builderState.agentName.trim(),
+      profileId: builderState.selectedProfile,
+      skillIds: builderState.selectedSkills,
+      layerIds: builderState.selectedLayers,
+      provider: builderState.selectedProvider || undefined,
+    }
+    const updated = existing
+      ? agents.map(a => a.id === existing.id ? newAgent : a)
+      : [...agents, newAgent]
+    setAgents(updated)
+    persist(updated)
+    setSelectedAgentId(newAgent.id)
+    setLastSaved(new Date())
+    patchBuilder({ currentStep: 3 })
     notify(`Agent "${newAgent.name}" saved!`, 'success')
-  }, [agentName, selectedProfile, selectedSkills, selectedLayers, selectedProvider, savedAgents, notify, persist])
+  }, [builderState, agents, selectedAgentId, persist, patchBuilder, notify])
 
-  const handleLoadAgent = useCallback((agent: SavedAgent) => {
-    setSelectedProfile(agent.profileId || '')
-    setSelectedSkills(agent.skillIds || [])
-    setSelectedLayers([...(agent.layerIds || [])])
-    setAgentName(agent.name)
-    setSelectedProvider(agent.provider || '')
+  // ── New agent ──
+  const handleNewAgent = useCallback(() => {
+    setBuilderState(DEFAULT_BUILDER_STATE)
+    setSelectedAgentId(null)
+    setLastSaved(undefined)
   }, [])
 
+  // ── Select agent from sidebar ──
+  const handleSelectAgent = useCallback((agent: SavedAgent) => {
+    setSelectedAgentId(agent.id)
+    setBuilderState({
+      currentStep: 2,
+      selectedProfile: agent.profileId,
+      selectedProvider: agent.provider ?? '',
+      selectedSkills: agent.skillIds,
+      selectedLayers: agent.layerIds,
+      agentName: agent.name,
+    })
+  }, [])
+
+  // ── Delete agent ──
   const handleDeleteAgent = useCallback((id: string) => {
-    const updated = savedAgents.filter(a => a.id !== id)
-    setSavedAgents(updated); persist(updated)
-  }, [savedAgents, persist])
+    const agent = agents.find(a => a.id === id)
+    const updated = agents.filter(a => a.id !== id)
+    setAgents(updated)
+    persist(updated)
+    if (selectedAgentId === id) {
+      setSelectedAgentId(null)
+      setBuilderState(DEFAULT_BUILDER_STATE)
+      setLastSaved(undefined)
+    }
+    if (agent) notify(`Agent "${agent.name}" deleted.`, 'success')
+  }, [agents, selectedAgentId, persist, notify])
 
-  const handleClearAll = useCallback(() => setShowClearConfirm(true), [])
-  const handleConfirmClear = useCallback(() => {
-    setSavedAgents([]); localStorage.removeItem('savedAgents'); setShowClearConfirm(false)
-  }, [])
-  const handleCancelClear = useCallback(() => setShowClearConfirm(false), [])
-
-  // FIX-5: memoized derived data
-  const selectedProfileData = useMemo(
-    () => data?.agentProfiles.find(p => p.id === selectedProfile) ?? null, [data, selectedProfile])
-  const selectedSkillsData = useMemo(
-    () => selectedSkills.map(id => data?.skills.find(s => s.id === id)).filter(Boolean) as Skill[],
-    [data, selectedSkills])
-  const selectedLayersData = useMemo(
-    () => selectedLayers.map(id => data?.layers.find(l => l.id === id)).filter(Boolean) as Layer[],
-    [data, selectedLayers])
+  // ── Delete all agents ──
+  const handleDeleteAllAgents = useCallback(() => {
+    setAgents([])
+    localStorage.removeItem('savedAgents')
+    setSelectedAgentId(null)
+    setBuilderState(DEFAULT_BUILDER_STATE)
+    setLastSaved(undefined)
+    notify('All agents deleted.', 'success')
+  }, [notify])
 
   return (
-    <div className="app">
-      {/* Header */}
-      <header className="app-header">
-        <div className="app-brand">
-          <h1>AI Agent Builder</h1>
-          <p>Design your custom AI personality and capability set.</p>
-        </div>
-        <div className="header-controls">
-          <button className="btn btn-ghost" onClick={fetchAPI} disabled={loading}>
-            {loading ? '⏳ Loading…' : '↺ Reload Config'}
-          </button>
-          <div className="session-badge">
-            <span className="session-dot" />
-            <SessionTimer />
-          </div>
-        </div>
-      </header>
+    <div style={{ display: 'flex', height: '100vh', width: '100vw', overflow: 'hidden', background: 'var(--bg-base)' }}>
+      <LeftSidebar
+        agents={agents}
+        data={data}
+        selectedAgentId={selectedAgentId}
+        builderState={builderState}
+        onNewAgent={handleNewAgent}
+        onSelectAgent={handleSelectAgent}
+        onDeleteAgent={handleDeleteAgent}
+        onDeleteAllAgents={handleDeleteAllAgents}
+      />
 
-      <main className="app-main">
-        {/* Two-column builder */}
-        <div className="builder-grid">
-          <ConfigPanel
-            data={data} loading={loading} error={error}
-            selectedProfile={selectedProfile} selectedSkills={selectedSkills}
-            selectedLayers={selectedLayers} selectedProvider={selectedProvider}
-            onProfileChange={handleProfileChange}
-            onSkillAdd={handleSkillAdd} onSkillRemove={handleSkillRemove} onSkillsReorder={handleSkillsReorder}
-            onLayerAdd={handleLayerAdd} onLayerRemove={handleLayerRemove} onLayersReorder={handleLayersReorder}
-            onProviderChange={handleProviderChange}
-          />
-          <AgentCanvas
-            selectedProfileData={selectedProfileData}
-            selectedSkillsData={selectedSkillsData}
-            selectedLayersData={selectedLayersData}
-            selectedProvider={selectedProvider}
-            agentName={agentName} onAgentNameChange={setAgentName}
-            onSave={handleSaveAgent} notification={notification}
-          />
-        </div>
+      <BuilderCanvas
+        data={data}
+        loading={loading}
+        builderState={builderState}
+        onProfileSelect={handleProfileSelect}
+        onProviderToggle={handleProviderToggle}
+        onSkillAdd={handleSkillAdd}
+        onSkillRemove={handleSkillRemove}
+        onSkillsReorder={handleSkillsReorder}
+        onLayerAdd={handleLayerAdd}
+        onLayerRemove={handleLayerRemove}
+        onLayersReorder={handleLayersReorder}
+        onReset={handleReset}
+        onClearAll={handleClearAll}
+      />
 
-        {/* Saved agents */}
-        {savedAgents.length > 0 && (
-          <section className="saved-section">
-            <div className="saved-header">
-              <h2>Saved Agents</h2>
-              {showClearConfirm ? (
-                <div className="clear-confirm-inline">
-                  <span>Clear all?</span>
-                  <button className="btn btn-danger btn-sm" onClick={handleConfirmClear}>Confirm</button>
-                  <button className="btn btn-ghost btn-sm" onClick={handleCancelClear}>Cancel</button>
-                </div>
-              ) : (
-                <button className="btn btn-danger" onClick={handleClearAll}>Clear All</button>
-              )}
-            </div>
-            <div className="saved-grid">
-              {savedAgents.map(agent => (
-                <SavedAgentCard key={agent.id} agent={agent} data={data}
-                  onLoad={handleLoadAgent} onDelete={handleDeleteAgent} />
-              ))}
-            </div>
-          </section>
-        )}
-      </main>
+      <AgentPreview
+        data={data}
+        builderState={builderState}
+        lastSaved={lastSaved}
+        onSave={handleSave}
+        onAgentNameChange={handleAgentNameChange}
+      />
+
+      <ToastNotification toast={toast} onClose={dismissToast} />
     </div>
   )
 }
