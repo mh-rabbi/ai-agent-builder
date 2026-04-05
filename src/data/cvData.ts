@@ -87,35 +87,35 @@ export const cvData: CVData = {
       tech: ["Node.js", "TypeScript", "Express.js", "PostgreSQL", "Knex", "Joi"],
       platform: "Backend",
       description: "Production-grade workforce management REST API with JWT, rate-limiting, and scalable architecture.",
-      sourceCode: "https://github.com/mh-rabbi", // Placeholder for actual link if different
+      sourceCode: "https://github.com/mh-rabbi/HR-Management-Backend", // Placeholder for actual link if different
     },
     {
       name: "GaariHaat App",
       tech: ["Flutter", "GetX", "NestJS", "MySQL", "Socket.IO"],
       platform: "Android/iOS/Web",
       description: "Full-stack vehicle marketplace with real-time listings, secure authentication, and payment integration.",
-      sourceCode: "https://github.com/mh-rabbi",
+      sourceCode: "https://github.com/mh-rabbi/eCommerce-solution-for-used-car-bike",
     },
     {
       name: "eCommerce-Solution-of-used-Car-bike",
       tech: ["TypeScript", "NestJS", "MySQL"],
       platform: "Backend",
       description: "Robust backend for used vehicle marketplace with real-time updates and secure entity relations.",
-      sourceCode: "https://github.com/mh-rabbi",
+      sourceCode: "https://github.com/mh-rabbi/Backend-eCommerce-Solution-of-used-Car-bike",
     },
     {
       name: "eGuidance App",
       tech: ["Java", "Firebase", "XML"],
       platform: "Android",
       description: "Mobile app connecting users with doctors for mental health support with real-time chat.",
-      sourceCode: "https://github.com/mh-rabbi",
-      liveDemo: "https://rabbi-cse.vercel.app",
+      sourceCode: "https://github.com/mh-rabbi/eGuidance-App",
+      liveDemo: "https://youtu.be/q9ghzHS4LCw",
     },
   ],
   achievements: [
     "Ranked Top 15th: IUBAT Collaborative Programming Contest",
     "Ranked Top 16th: Dhaka Divisional Hackathon 2024",
-    "Honourable Mention: ICPC Dhaka Regional Contest 2023",
+    "Honourable Mention: ICPC Dhaka Regional Onsite Contest 2023",
     "7 times SGPA 4.0/4.0 and recognized as Scholar",
   ],
   problemSolving: {
