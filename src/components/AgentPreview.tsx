@@ -10,9 +10,10 @@ interface Props {
   lastSaved: Date | undefined;
   onSave: () => void;
   onAgentNameChange: (name: string) => void;
+  onClose?: () => void; // Added for drawer mode
 }
 
-export default function AgentPreview({ data, builderState, lastSaved, onSave, onAgentNameChange }: Props) {
+export default function AgentPreview({ data, builderState, lastSaved, onSave, onAgentNameChange, onClose }: Props) {
   const [isEditingName, setIsEditingName] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const { selectedProfile, selectedProvider, selectedSkills, selectedLayers, agentName } = builderState;
@@ -42,10 +43,26 @@ export default function AgentPreview({ data, builderState, lastSaved, onSave, on
       background: 'var(--bg-surface-1)', borderLeft: '1px solid var(--border-default)', flexShrink: 0,
     }}>
       {/* Header */}
-      <div style={{ padding: '24px', borderBottom: '1px solid var(--border-default)' }}>
+      <div style={{ padding: '24px', borderBottom: '1px solid var(--border-default)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <h2 style={{ fontFamily: 'var(--font-heading)', fontWeight: 600, fontSize: '1.1rem', color: 'var(--text-primary)' }}>
           Agent Preview
         </h2>
+        {onClose && (
+          <button
+            onClick={onClose}
+            style={{
+              background: 'rgba(255,255,255,0.05)', border: 'none', borderRadius: '8px',
+              width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+              cursor: 'pointer', color: 'var(--text-muted)', transition: 'all 200ms',
+            }}
+            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.1)'; e.currentTarget.style.color = 'var(--text-primary)'; }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; e.currentTarget.style.color = 'var(--text-muted)'; }}
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
+        )}
       </div>
 
       {/* Empty State */}

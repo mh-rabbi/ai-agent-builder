@@ -4,7 +4,9 @@ import { PROFILE_META, DEFAULT_BUILDER_STATE } from './data'
 import LeftSidebar from './components/LeftSidebar'
 import BuilderCanvas from './components/BuilderCanvas'
 import AgentPreview from './components/AgentPreview'
+import MobileHeader from './components/MobileHeader'
 import ToastNotification from './components/ToastNotification'
+import { useWindowSize } from './hooks/useWindowSize'
 import './index.css'
 
 function App() {
@@ -22,6 +24,21 @@ function App() {
 
   /* ── Toast ── */
   const [toast, setToast] = useState<Toast | null>(null)
+
+  /* ── Responsive State ── */
+  const { width } = useWindowSize()
+  const isDesktop = width >= 1024
+  const [isLeftSidebarOpen, setIsLeftSidebarOpen] = useState(false)
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false)
+
+  // Auto-close drawers on escape or navigation might be nice, but simple toggle for now.
+  // Ensure drawers are closed when switching to desktop to avoid weird states if they were open.
+  useEffect(() => {
+    if (isDesktop) {
+      setIsLeftSidebarOpen(false)
+      setIsPreviewOpen(false)
+    }
+  }, [isDesktop])
 
   // ── Notify helper ──
   const notify = useCallback((message: string, type: 'success' | 'error') => {
@@ -222,42 +239,91 @@ function App() {
     notify('All agents deleted.', 'success')
   }, [notify])
 
+  const toggleLeftSidebar = useCallback(() => setIsLeftSidebarOpen(prev => !prev), [])
+  const togglePreview = useCallback(() => setIsPreviewOpen(prev => !prev), [])
+  const closeAllDrawers = useCallback(() => {
+    setIsLeftSidebarOpen(false)
+    setIsPreviewOpen(false)
+  }, [])
+
   return (
-    <div style={{ display: 'flex', height: '100vh', width: '100vw', overflow: 'hidden', background: 'var(--bg-base)' }}>
-      <LeftSidebar
-        agents={agents}
-        data={data}
-        selectedAgentId={selectedAgentId}
-        builderState={builderState}
-        onNewAgent={handleNewAgent}
-        onSelectAgent={handleSelectAgent}
-        onDeleteAgent={handleDeleteAgent}
-        onDeleteAllAgents={handleDeleteAllAgents}
-      />
+    <div style={{
+      display: 'flex',
+      flexDirection: 'column',
+      height: '100vh',
+      width: '100vw',
+      overflow: 'hidden',
+      background: 'var(--bg-base)',
+      position: 'relative'
+    }}>
+      {!isDesktop && (
+        <MobileHeader
+          onToggleLeft={toggleLeftSidebar}
+          onToggleRight={togglePreview}
+          isLeftOpen={isLeftSidebarOpen}
+          isPreviewOpen={isPreviewOpen}
+        />
+      )}
 
-      <BuilderCanvas
-        data={data}
-        loading={loading}
-        builderState={builderState}
-        onProfileSelect={handleProfileSelect}
-        onProviderToggle={handleProviderToggle}
-        onSkillAdd={handleSkillAdd}
-        onSkillRemove={handleSkillRemove}
-        onSkillsReorder={handleSkillsReorder}
-        onLayerAdd={handleLayerAdd}
-        onLayerRemove={handleLayerRemove}
-        onLayersReorder={handleLayersReorder}
-        onReset={handleReset}
-        onClearAll={handleClearAll}
-      />
+      <div style={{ display: 'flex', flex: 1, overflow: 'hidden', position: 'relative' }}>
+        {/* Left Sidebar (Fixed or Drawer) */}
+        {(isDesktop || isLeftSidebarOpen) && (
+          <div
+            className={!isDesktop ? 'drawer drawer-left glass-drawer' : ''}
+            style={!isDesktop ? {} : { flexShrink: 0 }}
+          >
+            <LeftSidebar
+              agents={agents}
+              data={data}
+              selectedAgentId={selectedAgentId}
+              builderState={builderState}
+              onNewAgent={() => { handleNewAgent(); if (!isDesktop) setIsLeftSidebarOpen(false); }}
+              onSelectAgent={(agent) => { handleSelectAgent(agent); if (!isDesktop) setIsLeftSidebarOpen(false); }}
+              onDeleteAgent={handleDeleteAgent}
+              onDeleteAllAgents={handleDeleteAllAgents}
+              onClose={!isDesktop ? () => setIsLeftSidebarOpen(false) : undefined}
+            />
+          </div>
+        )}
 
-      <AgentPreview
-        data={data}
-        builderState={builderState}
-        lastSaved={lastSaved}
-        onSave={handleSave}
-        onAgentNameChange={handleAgentNameChange}
-      />
+        <BuilderCanvas
+          data={data}
+          loading={loading}
+          builderState={builderState}
+          onProfileSelect={handleProfileSelect}
+          onProviderToggle={handleProviderToggle}
+          onSkillAdd={handleSkillAdd}
+          onSkillRemove={handleSkillRemove}
+          onSkillsReorder={handleSkillsReorder}
+          onLayerAdd={handleLayerAdd}
+          onLayerRemove={handleLayerRemove}
+          onLayersReorder={handleLayersReorder}
+          onReset={handleReset}
+          onClearAll={handleClearAll}
+        />
+
+        {/* Agent Preview (Fixed or Drawer) */}
+        {(isDesktop || isPreviewOpen) && (
+          <div
+            className={!isDesktop ? 'drawer drawer-right glass-drawer-right' : ''}
+            style={!isDesktop ? {} : { flexShrink: 0 }}
+          >
+            <AgentPreview
+              data={data}
+              builderState={builderState}
+              lastSaved={lastSaved}
+              onSave={handleSave}
+              onAgentNameChange={handleAgentNameChange}
+              onClose={!isDesktop ? () => setIsPreviewOpen(false) : undefined}
+            />
+          </div>
+        )}
+
+        {/* Overlay for drawers */}
+        {!isDesktop && (isLeftSidebarOpen || isPreviewOpen) && (
+          <div className="drawer-overlay" onClick={closeAllDrawers} />
+        )}
+      </div>
 
       <ToastNotification toast={toast} onClose={dismissToast} />
     </div>

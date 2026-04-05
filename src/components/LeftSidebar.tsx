@@ -14,11 +14,16 @@ interface Props {
   onSelectAgent: (agent: SavedAgent) => void;
   onDeleteAgent: (id: string) => void;
   onDeleteAllAgents: () => void;
+  onClose?: () => void; // Added for drawer mode
 }
 
 
 
-export default function LeftSidebar({ agents, data, selectedAgentId, onNewAgent, onSelectAgent, onDeleteAgent, onDeleteAllAgents }: Props) {
+export default function LeftSidebar({
+  agents, data, selectedAgentId,
+  onNewAgent, onSelectAgent, onDeleteAgent, onDeleteAllAgents,
+  onClose
+}: Props) {
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [showDeleteAllModal, setShowDeleteAllModal] = useState(false);
 
@@ -40,7 +45,7 @@ export default function LeftSidebar({ agents, data, selectedAgentId, onNewAgent,
         flexShrink: 0, overflow: 'hidden',
       }}>
         {/* Section A — Branding */}
-        <div style={{ padding: '24px', borderBottom: '1px solid var(--border-default)' }}>
+        <div style={{ padding: '24px', borderBottom: '1px solid var(--border-default)', position: 'relative' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <div style={{
               width: '32px', height: '32px', borderRadius: '8px',
@@ -54,6 +59,24 @@ export default function LeftSidebar({ agents, data, selectedAgentId, onNewAgent,
               Agent Builder
             </h1>
           </div>
+          {onClose && (
+            <button
+              onClick={onClose}
+              style={{
+                position: 'absolute', top: '24px', right: '16px',
+                background: 'rgba(255,255,255,0.05)', border: 'none', borderRadius: '8px',
+                width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                cursor: 'pointer', color: 'var(--text-muted)', transition: 'all 200ms',
+              }}
+              className="desktop-only-hide" // Custom class we can handle or just use inline
+              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.1)'; e.currentTarget.style.color = 'var(--text-primary)'; }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; e.currentTarget.style.color = 'var(--text-muted)'; }}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+              </svg>
+            </button>
+          )}
         </div>
 
         {/* Section B — My Agents sub-header */}

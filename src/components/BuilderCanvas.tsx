@@ -13,6 +13,7 @@ import type { AgentData, BuilderState, Skill, Layer } from '../types';
 import { PROFILE_META, PROVIDER_INFO } from '../data';
 import { ProfileCard } from '../features/builder/ProfileCard';
 import { SkillItem, LayerItem } from '../features/builder/BuilderItems';
+import { useWindowSize } from '../hooks/useWindowSize';
 
 interface Props {
   data: AgentData | null;
@@ -134,9 +135,12 @@ function CapabilitiesPanel({ data, builderState, onSkillAdd, onSkillRemove, onSk
     color: activeTab === tab ? 'white' : 'var(--text-muted)',
   });
 
+  const { width } = useWindowSize();
+  const isMobile = width < 768;
+
   return (
     <DndContext sensors={sensors} collisionDetection={closestCorners} onDragStart={onDragStart} onDragEnd={onDragEnd}>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '16px' }}>
         {/* LEFT — Available */}
         <div style={{ background: 'var(--bg-surface-1)', borderRadius: '12px', padding: '16px', border: '1px solid var(--border-default)' }}>
           {/* Tabs */}
@@ -262,6 +266,9 @@ export default function BuilderCanvas({
   onLayerAdd, onLayerRemove, onLayersReorder,
   onReset, onClearAll,
 }: Props) {
+  const { width } = useWindowSize();
+  const isMobile = width < 768;
+
   const [showClearModal, setShowClearModal] = useState(false);
   const { currentStep, selectedProfile, selectedProvider, selectedSkills, selectedLayers } = builderState;
 
@@ -280,7 +287,7 @@ export default function BuilderCanvas({
   return (
     <>
       <main style={{ flex: 1, background: 'var(--bg-base)', overflowY: 'auto', position: 'relative' }}>
-        <div style={{ maxWidth: '900px', margin: '0 auto', padding: '32px' }}>
+        <div style={{ maxWidth: '900px', margin: '0 auto', padding: isMobile ? '20px 16px' : '32px' }}>
 
           {/* Toolbar */}
           {hasContent && (
@@ -321,13 +328,20 @@ export default function BuilderCanvas({
           )}
 
           {/* Progress Stepper */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '16px', marginBottom: '48px' }}>
+          <div className="scrollbar-hide" style={{
+            display: 'flex', alignItems: 'center',
+            justifyContent: isMobile ? 'flex-start' : 'center',
+            gap: isMobile ? '12px' : '16px',
+            marginBottom: '48px',
+            overflowX: isMobile ? 'auto' : 'visible',
+            paddingBottom: isMobile ? '8px' : '0',
+          }}>
             <StepDot step={1} label="Profile" currentStep={currentStep} isCompleted={step1Done} />
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={step1Done ? 'var(--accent-success)' : 'var(--text-muted)'} strokeWidth="2">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={step1Done ? 'var(--accent-success)' : 'var(--text-muted)'} strokeWidth="2" style={{ flexShrink: 0 }}>
               <polyline points="9 18 15 12 9 6"/>
             </svg>
             <StepDot step={2} label="Capabilities" currentStep={currentStep} isCompleted={step2Done} />
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={step2Done ? 'var(--accent-success)' : 'var(--text-muted)'} strokeWidth="2">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={step2Done ? 'var(--accent-success)' : 'var(--text-muted)'} strokeWidth="2" style={{ flexShrink: 0 }}>
               <polyline points="9 18 15 12 9 6"/>
             </svg>
             <StepDot step={3} label="Save" currentStep={currentStep} isCompleted={false} />
