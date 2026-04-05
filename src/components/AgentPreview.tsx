@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect } from 'react';
 import type { AgentData, BuilderState } from '../types';
 import { PROFILE_META, PROVIDER_INFO, CATEGORY_COLORS, LAYER_TYPE_COLORS } from '../data';
-import { Badge, CategoryDot, Button } from './Primitives';
+import { Badge, CategoryDot } from './ui/Badge';
+import { Button } from './ui/Button';
 
 interface Props {
   data: AgentData | null;

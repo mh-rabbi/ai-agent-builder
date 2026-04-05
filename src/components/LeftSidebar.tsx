@@ -1,7 +1,9 @@
 import { useState, useCallback } from 'react';
 import type { SavedAgent, AgentData, BuilderState } from '../types';
 import { PROFILE_META, PROVIDER_INFO, CATEGORY_COLORS } from '../data';
-import { Button, CategoryDot } from './Primitives';
+import { Button } from './ui/Button';
+import { CategoryDot } from './ui/Badge';
+import { timeAgo } from '../utils/time';
 
 interface Props {
   agents: SavedAgent[];
@@ -14,15 +16,7 @@ interface Props {
   onDeleteAllAgents: () => void;
 }
 
-function timeAgo(ts: number): string {
-  const s = Math.floor((Date.now() - ts) / 1000);
-  if (s < 60) return 'just now';
-  const m = Math.floor(s / 60);
-  if (m < 60) return `${m}m ago`;
-  const h = Math.floor(m / 60);
-  if (h < 24) return `${h}h ago`;
-  return `${Math.floor(h / 24)}d ago`;
-}
+
 
 export default function LeftSidebar({ agents, data, selectedAgentId, onNewAgent, onSelectAgent, onDeleteAgent, onDeleteAllAgents }: Props) {
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);

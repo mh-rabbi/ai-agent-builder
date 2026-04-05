@@ -11,7 +11,8 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import type { AgentData, BuilderState, Skill, Layer } from '../types';
 import { PROFILE_META, PROVIDER_INFO } from '../data';
-import { ProfileCard, SkillItem, LayerItem } from './Primitives';
+import { ProfileCard } from '../features/builder/ProfileCard';
+import { SkillItem, LayerItem } from '../features/builder/BuilderItems';
 
 interface Props {
   data: AgentData | null;
